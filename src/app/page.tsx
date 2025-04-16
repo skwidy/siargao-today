@@ -7,9 +7,17 @@ import { Suspense } from 'react';
 // Mark the page as dynamic
 export const dynamic = 'force-dynamic';
 
+async function getBaseUrl() {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return 'http://localhost:3000';
+}
+
 async function getInstructors() {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000'}/api/instructors`, {
+    const baseUrl = await getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/instructors`, {
       cache: 'no-store'
     });
     
@@ -26,7 +34,8 @@ async function getInstructors() {
 
 async function getEvents() {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000'}/api/events`, {
+    const baseUrl = await getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/events`, {
       cache: 'no-store'
     });
     
