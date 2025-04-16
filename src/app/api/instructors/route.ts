@@ -1,69 +1,56 @@
 import { NextResponse } from 'next/server';
-import { 
-  instructorsTable, 
-  type Instructor, 
-  type InstructorStatus,
-  getFieldValue, 
-  getSingleSelectField,
-  getMultipleSelectField,
-  getRatingField,
-  getInstagramHandle,
-  getWhatsAppNumber
-} from '@/lib/airtable';
+
+export type InstructorStatus = 'Active' | 'Inactive' | 'Pending';
+
+export interface Instructor {
+  id: string;
+  name: string;
+  tagline: string;
+  status: InstructorStatus;
+  rating: number;
+  locations: string[];
+  tags: string[];
+  whatsapp: string;
+  instagram: string;
+}
 
 export async function GET() {
   try {
-    const records = await instructorsTable
-      .select({
-        sort: [{ field: 'name', direction: 'asc' }],
-      })
-      .firstPage();
+    const baseId = process.env.AIRTABLE_BASE_ID;
+    const tableId = 'Instructors';
+    const apiKey = process.env.AIRTABLE_API_KEY;
 
-    console.log(`Found ${records.length} instructor records`);
+    const response = await fetch(
+      `https://api.airtable.com/v0/${baseId}/${tableId}?sort[0][field]=name&sort[0][direction]=asc`,
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const instructorStatusOptions: InstructorStatus[] = ['Active', 'Inactive', 'Pending'];
-    const locationOptions: string[] = ['Cloud 9', 'Quiksilver', 'Pacifico', 'General Luna', 'Other'];
-    const tagOptions: string[] = ['Beginner', 'Intermediate', 'Advanced', 'Kids', 'Private', 'Group'];
+    if (!response.ok) {
+      throw new Error(`Airtable API error: ${response.status}`);
+    }
 
-    const instructors: Instructor[] = records.map((record) => {
-      // Log raw field values
-      console.log(`Instructor ID: ${record.id}`);
-      console.log('Raw field values:');
-      console.log(`- name: ${record.get('name')} (${typeof record.get('name')})`);
-      console.log(`- tagline: ${record.get('tagline')} (${typeof record.get('tagline')})`);
-      console.log(`- status: ${record.get('status')} (${typeof record.get('status')})`);
-      console.log(`- rating: ${record.get('rating')} (${typeof record.get('rating')})`);
-      console.log(`- locations: ${JSON.stringify(record.get('locations'))} (${Array.isArray(record.get('locations')) ? 'array' : typeof record.get('locations')})`);
-      console.log(`- tags: ${JSON.stringify(record.get('tags'))} (${Array.isArray(record.get('tags')) ? 'array' : typeof record.get('tags')})`);
-      console.log(`- instagram: ${record.get('instagram')} (${typeof record.get('instagram')})`);
-      console.log(`- whatsapp: ${record.get('whatsapp')} (${typeof record.get('whatsapp')})`);
-      
-      // Process fields with helper functions
-      const instagram = getInstagramHandle(record, 'instagram');
-      const whatsapp = getWhatsAppNumber(record, 'whatsapp');
-      
-      console.log('Processed social values:');
-      console.log(`- instagram: ${instagram}`);
-      console.log(`- whatsapp: ${whatsapp}`);
-
-      const instructor: Instructor = {
-        id: record.id,
-        name: getFieldValue(record, 'name', ''),
-        tagline: getFieldValue(record, 'tagline', ''),
-        status: getSingleSelectField(record, 'status', instructorStatusOptions),
-        rating: getRatingField(record, 'rating'),
-        locations: getMultipleSelectField(record, 'locations', locationOptions),
-        tags: getMultipleSelectField(record, 'tags', tagOptions),
-        instagram,
-        whatsapp,
-      };
-      
-      // Log processed values
-      console.log('Processed values:');
-      console.log(JSON.stringify(instructor, null, 2));
-      
-      return instructor;
-    });
+    const data = await response.json();
+    
+    const instructors: Instructor[] = data.records.map((record: any) => ({
+      id: record.id,
+      name: record.fields.name || '',
+      tagline: record.fields.tagline || '',
+      status: record.fields.status || 'Pending',
+      rating: Number(record.fields.rating) || 0,
+      locations: Array.isArray(record.fields.locations) ? record.fields.locations : [],
+      tags: Array.isArray(record.fields.tags) ? record.fields.tags : [],
+      instagram: record.fields.instagram ? 
+        record.fields.instagram.startsWith('@') ? 
+          record.fields.instagram : 
+          `@${record.fields.instagram.split('instagram.com/').pop()?.split('/')[0] || ''}` : 
+        '',
+      whatsapp: (record.fields.whatsapp || '').replace(/\D/g, ''),
+    }));
 
     return NextResponse.json(instructors);
   } catch (error) {

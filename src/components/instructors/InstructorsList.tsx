@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Instagram, MessageSquare, MapPin, Star } from 'lucide-react';
 import Link from 'next/link';
 
@@ -12,69 +12,41 @@ interface Instructor {
   rating: number;
   locations: string[];
   tags: string[];
-  whatsapp: string; // Phone field
-  instagram: string; // URL field
+  whatsapp: string;
+  instagram: string;
 }
 
-export default function InstructorsList() {
-  const [instructors, setInstructors] = useState<Instructor[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface InstructorsListProps {
+  initialInstructors: Instructor[] | { error: string };
+}
 
-  useEffect(() => {
-    const controller = new AbortController();
+export default function InstructorsList({ initialInstructors }: InstructorsListProps) {
+  const [instructors, setInstructors] = useState<Instructor[] | null>(
+    Array.isArray(initialInstructors) ? initialInstructors : null
+  );
+  const [error, setError] = useState<string | null>(
+    'error' in initialInstructors ? initialInstructors.error : null
+  );
 
-    async function fetchInstructors() {
-      try {
-        const response = await fetch('/api/instructors', {
-          signal: controller.signal
-        });
-        const data = await response.json();
-        
-        if (data.error) {
-          setError(data.error);
-          setInstructors([]);
-        } else {
-          setInstructors(Array.isArray(data) ? data : []);
-          setError(null);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return; // Ignore abort errors
-        }
-        console.error('Error fetching instructors:', error);
-        setError('Failed to fetch instructors');
+  // Optional: Fetch updates periodically or on user interaction
+  async function refreshInstructors() {
+    try {
+      const response = await fetch('/api/instructors');
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      
+      if ('error' in data) {
+        setError(data.error);
         setInstructors([]);
-      } finally {
-        setLoading(false);
+      } else {
+        setInstructors(Array.isArray(data) ? data : []);
+        setError(null);
       }
+    } catch (error) {
+      console.error('Error fetching instructors:', error);
+      setError('Failed to fetch instructors');
+      setInstructors([]);
     }
-
-    fetchInstructors();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
-  if (loading || !instructors) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-pulse">
-        {[1, 2, 3, 4].map((n) => (
-          <div key={n} className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="mt-2 h-3 bg-gray-200 rounded w-1/2"></div>
-            <div className="mt-3 flex gap-2">
-              <div className="h-6 bg-gray-200 rounded w-16"></div>
-              <div className="h-6 bg-gray-200 rounded w-16"></div>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <div className="h-6 bg-gray-200 rounded w-24"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
   }
 
   if (error) {
@@ -85,7 +57,7 @@ export default function InstructorsList() {
     );
   }
 
-  if (instructors.length === 0) {
+  if (!instructors || instructors.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-gray-500 col-span-full">
         No instructors available

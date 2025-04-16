@@ -1,51 +1,46 @@
 import { NextResponse } from 'next/server';
-import { 
-  eventsTable, 
-  type Event, 
-  type EventStatus, 
-  getFieldValue, 
-  getDateField, 
-  getSingleSelectField 
-} from '@/lib/airtable';
+
+export type EventStatus = 'Upcoming' | 'Completed' | 'Cancelled';
+
+export interface Event {
+  id: string;
+  name: string;
+  notes: string;
+  status: EventStatus;
+  date: string;
+  location: string;
+}
 
 export async function GET() {
   try {
-    const records = await eventsTable
-      .select({
-        sort: [{ field: 'date', direction: 'asc' }]
-      })
-      .firstPage();
+    const baseId = process.env.AIRTABLE_BASE_ID;
+    const tableId = 'Events';
+    const apiKey = process.env.AIRTABLE_API_KEY;
 
-    console.log(`Found ${records.length} event records`);
+    const response = await fetch(
+      `https://api.airtable.com/v0/${baseId}/${tableId}?sort[0][field]=date&sort[0][direction]=asc`,
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const eventStatusOptions: EventStatus[] = ['Upcoming', 'Completed', 'Cancelled'];
+    if (!response.ok) {
+      throw new Error(`Airtable API error: ${response.status}`);
+    }
 
-    const events: Event[] = records.map((record) => {
-      // Log raw field values
-      console.log(`Event ID: ${record.id}`);
-      console.log('Raw field values:');
-      console.log(`- name: ${record.get('name')} (${typeof record.get('name')})`);
-      console.log(`- notes: ${record.get('notes')} (${typeof record.get('notes')})`);
-      console.log(`- status: ${record.get('status')} (${typeof record.get('status')})`);
-      console.log(`- date: ${record.get('date')} (${typeof record.get('date')})`);
-      console.log(`- location: ${record.get('location')} (${typeof record.get('location')})`);
-      
-      // Process fields with helper functions
-      const event: Event = {
-        id: record.id,
-        name: getFieldValue(record, 'name', ''),
-        notes: getFieldValue(record, 'notes', ''),
-        status: getSingleSelectField(record, 'status', eventStatusOptions),
-        date: getDateField(record, 'date'),
-        location: getFieldValue(record, 'location', ''),
-      };
-      
-      // Log processed values
-      console.log('Processed values:');
-      console.log(JSON.stringify(event, null, 2));
-      
-      return event;
-    });
+    const data = await response.json();
+    
+    const events: Event[] = data.records.map((record: any) => ({
+      id: record.id,
+      name: record.fields.name || '',
+      notes: record.fields.notes || '',
+      status: record.fields.status || 'Upcoming',
+      date: record.fields.date || new Date().toISOString(),
+      location: record.fields.location || '',
+    }));
 
     return NextResponse.json(events);
   } catch (error) {

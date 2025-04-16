@@ -12,71 +12,37 @@ interface Event {
   status: 'Upcoming' | 'Completed' | 'Cancelled';
 }
 
-export default function EventsList() {
-  const [events, setEvents] = useState<Event[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface EventsListProps {
+  initialEvents: Event[] | { error: string };
+}
 
-  useEffect(() => {
-    const controller = new AbortController();
+export default function EventsList({ initialEvents }: EventsListProps) {
+  const [events, setEvents] = useState<Event[] | null>(
+    Array.isArray(initialEvents) ? initialEvents : null
+  );
+  const [error, setError] = useState<string | null>(
+    'error' in initialEvents ? initialEvents.error : null
+  );
 
-    async function fetchEvents() {
-      try {
-        const response = await fetch('/api/events', {
-          signal: controller.signal
-        });
-        const data = await response.json();
-        
-        if (data.error) {
-          setError(data.error);
-          setEvents([]);
-        } else {
-          setEvents(Array.isArray(data) ? data : []);
-          setError(null);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return; // Ignore abort errors
-        }
-        console.error('Error fetching events:', error);
-        setError('Failed to fetch events');
+  // Optional: Fetch updates periodically or on user interaction
+  async function refreshEvents() {
+    try {
+      const response = await fetch('/api/events');
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      
+      if ('error' in data) {
+        setError(data.error);
         setEvents([]);
-      } finally {
-        setLoading(false);
+      } else {
+        setEvents(Array.isArray(data) ? data : []);
+        setError(null);
       }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      setError('Failed to fetch events');
+      setEvents([]);
     }
-
-    fetchEvents();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
-  if (loading || !events) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        {[1, 2, 3].map((n) => (
-          <div key={n} className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-              <div className="h-6 bg-gray-200 rounded w-20"></div>
-            </div>
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center">
-                <div className="h-4 w-4 bg-gray-200 rounded mr-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
-              <div className="flex items-center">
-                <div className="h-4 w-4 bg-gray-200 rounded mr-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-              </div>
-              <div className="h-4 bg-gray-200 rounded w-2/3 mt-2"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
   }
 
   if (error) {
@@ -87,7 +53,7 @@ export default function EventsList() {
     );
   }
 
-  if (events.length === 0) {
+  if (!events || events.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-gray-500">
         No events scheduled for today

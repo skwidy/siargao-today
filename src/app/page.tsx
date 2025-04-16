@@ -2,9 +2,51 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EventsList from '@/components/events/EventsList';
 import InstructorsList from '@/components/instructors/InstructorsList';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Suspense } from 'react';
 
-export default function Home() {
+// Mark the page as dynamic
+export const dynamic = 'force-dynamic';
+
+async function getInstructors() {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000'}/api/instructors`, {
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching instructors:', error);
+    return { error: 'Failed to fetch instructors' };
+  }
+}
+
+async function getEvents() {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000'}/api/events`, {
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    return { error: 'Failed to fetch events' };
+  }
+}
+
+export default async function Home() {
+  const [instructorsData, eventsData] = await Promise.all([
+    getInstructors(),
+    getEvents()
+  ]);
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -40,12 +82,20 @@ export default function Home() {
               <TabsTrigger value="events">Events</TabsTrigger>
               <TabsTrigger value="instructors">Surf Instructors</TabsTrigger>
             </TabsList>
-            <TabsContent value="events" className="mt-2">
-              <EventsList />
-            </TabsContent>
-            <TabsContent value="instructors" className="mt-2">
-              <InstructorsList />
-            </TabsContent>
+            <Suspense fallback={
+              <div className="space-y-4 animate-pulse">
+                <div className="h-24 bg-gray-200 rounded-lg"></div>
+                <div className="h-24 bg-gray-200 rounded-lg"></div>
+                <div className="h-24 bg-gray-200 rounded-lg"></div>
+              </div>
+            }>
+              <TabsContent value="events" className="mt-2">
+                <EventsList initialEvents={eventsData} />
+              </TabsContent>
+              <TabsContent value="instructors" className="mt-2">
+                <InstructorsList initialInstructors={instructorsData} />
+              </TabsContent>
+            </Suspense>
           </Tabs>
         </div>
       </div>
