@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { instructorsTable } from '@/lib/airtable';
+import { instructorsTable, type Instructor } from '@/lib/airtable';
 
 export async function GET() {
   try {
@@ -9,11 +9,13 @@ export async function GET() {
       })
       .firstPage();
 
-    const instructors = records.map((record) => ({
+    const instructors: Instructor[] = records.map((record) => ({
       id: record.id,
-      name: record.get('name'),
-      instagram: record.get('instagram'),
-      whatsapp: record.get('whatsapp'),
+      name: record.get('name') as string,
+      tagline: record.get('tagline') as string,
+      status: record.get('status') as Instructor['status'],
+      rating: record.get('rating') as number,
+      locations: record.get('locations') as string[],
       tags: record.get('tags') as string[],
     }));
 

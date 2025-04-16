@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
-import { eventsTable } from '@/lib/airtable';
+import { eventsTable, type Event } from '@/lib/airtable';
 
 export async function GET() {
   try {
     const records = await eventsTable
       .select({
-        sort: [{ field: 'time', direction: 'asc' }],
+        sort: [{ field: 'date', direction: 'asc' }],
         filterByFormula: "IS_SAME({date}, TODAY(), 'day')",
       })
       .firstPage();
 
-    const events = records.map((record) => ({
+    const events: Event[] = records.map((record) => ({
       id: record.id,
-      name: record.get('name'),
-      time: record.get('time'),
-      location: record.get('location'),
+      name: record.get('name') as string,
+      notes: record.get('notes') as string,
+      status: record.get('status') as Event['status'],
+      date: record.get('date') as string,
+      location: record.get('location') as string,
     }));
 
     return NextResponse.json(events);
