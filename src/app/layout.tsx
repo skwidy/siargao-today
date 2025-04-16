@@ -9,6 +9,12 @@ export const metadata = {
   description: 'Your community hub for events and surf instructors in Siargao',
 };
 
+// These are the attributes that Grammarly injects
+const grammarlyAttributes = {
+  'data-new-gr-c-s-check-loaded': 'true',
+  'data-gr-ext-installed': 'true',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -16,10 +22,12 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className={inter.className}>
-          <main className="min-h-screen bg-gray-50">
-            {children}
+      <html lang="en" className="bg-gray-50" suppressHydrationWarning>
+        <body className={inter.className} suppressHydrationWarning {...grammarlyAttributes}>
+          <main className="min-h-screen">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {children}
+            </div>
           </main>
         </body>
       </html>

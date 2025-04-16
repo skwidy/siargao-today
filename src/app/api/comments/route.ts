@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { commentsTable, type Comment } from '@/lib/airtable';
+import { commentsTable, type Comment, getFieldValue } from '@/lib/airtable';
 import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request: Request) {
@@ -22,15 +22,36 @@ export async function GET(request: Request) {
       })
       .firstPage();
 
-    const comments: Comment[] = records.map((record) => ({
-      id: record.id,
-      name: record.get('name') as string,
-      comment: record.get('comment') as string,
-      rating: record.get('rating') as number,
-      instructorId: record.get('instructorId') as string,
-      eventId: record.get('eventId') as string,
-      user_uid: record.get('user_uid') as string,
-    }));
+    console.log(`Found ${records.length} comment records`);
+
+    const comments: Comment[] = records.map((record) => {
+      // Log raw field values
+      console.log(`Comment ID: ${record.id}`);
+      console.log('Raw field values:');
+      console.log(`- name: ${record.get('name')} (${typeof record.get('name')})`);
+      console.log(`- comment: ${record.get('comment')} (${typeof record.get('comment')})`);
+      console.log(`- rating: ${record.get('rating')} (${typeof record.get('rating')})`);
+      console.log(`- instructorId: ${record.get('instructorId')} (${typeof record.get('instructorId')})`);
+      console.log(`- eventId: ${record.get('eventId')} (${typeof record.get('eventId')})`);
+      console.log(`- user_uid: ${record.get('user_uid')} (${typeof record.get('user_uid')})`);
+      
+      // Process fields with helper functions
+      const comment: Comment = {
+        id: record.id,
+        name: getFieldValue(record, 'name', ''),
+        comment: getFieldValue(record, 'comment', ''),
+        rating: getFieldValue(record, 'rating', 0),
+        instructorId: getFieldValue(record, 'instructorId', ''),
+        eventId: getFieldValue(record, 'eventId', ''),
+        user_uid: getFieldValue(record, 'user_uid', ''),
+      };
+      
+      // Log processed values
+      console.log('Processed values:');
+      console.log(JSON.stringify(comment, null, 2));
+      
+      return comment;
+    });
 
     return NextResponse.json(comments);
   } catch (error) {

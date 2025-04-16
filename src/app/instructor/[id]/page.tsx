@@ -30,12 +30,19 @@ export default function InstructorProfile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchInstructor() {
       try {
-        const response = await fetch(`/api/instructors/${id}`);
+        const response = await fetch(`/api/instructors/${id}`, {
+          signal: controller.signal
+        });
         const data = await response.json();
         setInstructor(data);
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return; // Ignore abort errors
+        }
         console.error('Error fetching instructor:', error);
       } finally {
         setLoading(false);
@@ -44,16 +51,25 @@ export default function InstructorProfile() {
 
     async function fetchComments() {
       try {
-        const response = await fetch(`/api/instructors/${id}/comments`);
+        const response = await fetch(`/api/instructors/${id}/comments`, {
+          signal: controller.signal
+        });
         const data = await response.json();
         setComments(data);
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return; // Ignore abort errors
+        }
         console.error('Error fetching comments:', error);
       }
     }
 
     fetchInstructor();
     fetchComments();
+
+    return () => {
+      controller.abort();
+    };
   }, [id]);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
